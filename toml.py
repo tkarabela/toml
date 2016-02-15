@@ -519,16 +519,16 @@ def load_array(a):
             retval.append(nval)
     return retval
 
-def dump(o, f):
+def dump(o, f, newline_before_section=False, align=False):
     """Writes out to f the toml corresponding to o. Returns said toml."""
     if f.write:
-        d = dumps(o)
+        d = dumps(o, newline_before_section=newline_before_section, align=align)
         f.write(d)
         return d
     else:
         raise Exception("You can only dump an object to a file descriptor")
 
-def dumps(o):
+def dumps(o, newline_before_section=False, align=False):
     """Returns a string containing the toml corresponding to o, a dictionary"""
     retval = ""
     addtoretval, sections = dump_sections(o, "")
@@ -536,8 +536,10 @@ def dumps(o):
     while sections != {}:
         newsections = {}
         for section in sections:
-            addtoretval, addtosections = dump_sections(sections[section], section)
+            addtoretval, addtosections = dump_sections(sections[section], section, align=align)
             if addtoretval:
+                if newline_before_section and retval != "":
+                    retval += "\n"
                 retval += "["+section+"]\n"
                 retval += addtoretval
             for s in addtosections:
@@ -545,19 +547,29 @@ def dumps(o):
         sections = newsections
     return retval
 
-def dump_sections(o, sup):
+def _quote(section):
+    qsection = section
+    if not re.match(r'^[A-Za-z0-9_-]+$', section):
+        if '"' in section:
+            qsection = "'" + section + "'"
+        else:
+            qsection = '"' + section + '"'
+    return qsection
+
+def dump_sections(o, sup, align=False):
     retstr = ""
     if sup != "" and sup[-1] != ".":
         sup += '.'
     retdict = {}
     arraystr = ""
+
+    try:
+        longest_qsection_length = max(len(_quote(section)) for section in o if not isinstance(o[section], dict))
+    except ValueError:
+        longest_qsection_length = 0
+
     for section in o:
-        qsection = section
-        if not re.match(r'^[A-Za-z0-9_-]+$', section):
-            if '"' in section:
-                qsection = "'" + section + "'"
-            else:
-                qsection = '"' + section + '"'
+        qsection = _quote(section)
         if not isinstance(o[section], dict):
             arrayoftables = False
             if isinstance(o[section], list):
@@ -568,7 +580,7 @@ def dump_sections(o, sup):
                 for a in o[section]:
                     arraytabstr = ""
                     arraystr += "[["+sup+qsection+"]]\n"
-                    s, d = dump_sections(a, sup+qsection)
+                    s, d = dump_sections(a, sup+qsection, align=align)
                     if s:
                         if s[0] == "[":
                             arraytabstr += s
@@ -577,7 +589,7 @@ def dump_sections(o, sup):
                     while d != {}:
                         newd = {}
                         for dsec in d:
-                            s1, d1 = dump_sections(d[dsec], sup+qsection+"."+dsec)
+                            s1, d1 = dump_sections(d[dsec], sup+qsection+"."+dsec, align=align)
                             if s1:
                                 arraytabstr += "["+sup+qsection+"."+dsec+"]\n"
                                 arraytabstr += s1
@@ -587,7 +599,12 @@ def dump_sections(o, sup):
                     arraystr += arraytabstr
             else:
                 if o[section] is not None:
-                    retstr += (qsection + " = " +
+                    if align:
+                        aligned_qsection = format(qsection, str(longest_qsection_length))
+                    else:
+                        aligned_qsection = qsection
+
+                    retstr += (aligned_qsection + " = " +
                                str(dump_value(o[section])) + '\n')
         else:
             retdict[qsection] = o[section]
