@@ -32,7 +32,7 @@ def load(f, _dict=dict):
         for l in f:
             if not isinstance(l, basestring):
                 raise Exception("Load expects a list to contain filenames only")
-        d = _dict()
+        d = []
         for l in f:
             d.append(load(l))
         r = _dict()
