@@ -1,6 +1,6 @@
 # This software is released under the MIT license
 
-import datetime, decimal, re
+import datetime, decimal, re, collections
 
 class TomlTz(datetime.tzinfo):
 
@@ -533,8 +533,8 @@ def dumps(o, newline_before_section=False, align=False):
     retval = ""
     addtoretval, sections = dump_sections(o, "")
     retval += addtoretval
-    while sections != {}:
-        newsections = {}
+    while sections:
+        newsections = collections.OrderedDict()
         for section in sections:
             addtoretval, addtosections = dump_sections(sections[section], section, align=align)
             if addtoretval:
@@ -560,7 +560,7 @@ def dump_sections(o, sup, align=False):
     retstr = ""
     if sup != "" and sup[-1] != ".":
         sup += '.'
-    retdict = {}
+    retdict = collections.OrderedDict()
     arraystr = ""
 
     try:
@@ -586,8 +586,8 @@ def dump_sections(o, sup, align=False):
                             arraytabstr += s
                         else:
                             arraystr += s
-                    while d != {}:
-                        newd = {}
+                    while d:
+                        newd = collections.OrderedDict()
                         for dsec in d:
                             s1, d1 = dump_sections(d[dsec], sup+qsection+"."+dsec, align=align)
                             if s1:
